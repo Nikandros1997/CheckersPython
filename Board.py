@@ -3,7 +3,7 @@ from Helpers import debug
 
 
 class Board:
-    def __init__(self, level_player_1: int = 0, level_player_2: int = 2):
+    def __init__(self, level_player_1: int = 1, level_player_2: int = 2):
         debug('Create Board')
         self.player1 = Player(0, 0, 'x', level_player_1)
         self.player2 = Player(5, 1, 'o', level_player_2)

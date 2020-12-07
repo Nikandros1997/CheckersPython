@@ -3,6 +3,7 @@ from Helpers import debug
 import random
 import copy
 
+
 def get_player_input(tokens_that_can_move, all_moves):
 
     print('Give me your input:')
@@ -149,21 +150,44 @@ class Player:
 
         best_score = float('-inf')
         best_move = (-1, -1)
-        token = (-1, -1)
+        token_coordindates = (-1, -1)
 
         debug(f'tokens_that_can_move: {tokens_that_can_move}')
 
         for x, y in tokens_that_can_move:
             for current_move in all_moves[x][y]:
                 debug(f'Rate Moves of Token[{x}][{y}]')
-                current_score = self.minimax(board, 1, True, opponent)
+
+                temp_self = copy.deepcopy(self)
+                temp_opponent = copy.deepcopy(opponent)
+                temp_board = copy.deepcopy(board)
+
+                token = temp_self.get_token(x, y)
+
+                killed_token_coordinates = temp_self.move_token(token, current_move)
+                current_move_x, current_move_y = current_move
+
+                temp_board[current_move_x][current_move_y] = temp_self.symbol
+                temp_board[x][y] = ' '
+
+                if not killed_token_coordinates == (-1, -1):
+                    opponent.kill_token(killed_token_coordinates)
+
+                    killed_x, killed_y = killed_token_coordinates
+
+                    temp_board[killed_x][killed_y] = ' '
+
+                current_score = temp_opponent.minimax(temp_board, 2, True, temp_self)
 
                 if current_score > best_score:
                     best_score = current_score
                     best_move = current_move
-                    token = (x, y)
-                debug(f'current_score: {current_score}')
-        (x, y) = token
+                    token_coordindates = (x, y)
+                    print(f'best_score: {best_score} => token_coordinate: {token_coordindates}')
+                print(best_move)
+                print(f'current_score: {current_score} => best_score: {best_score}')
+
+        (x, y) = token_coordindates
         final_token = self.get_token(x, y)
         killed_token_coordinates = self.move_token(final_token, best_move)
 
@@ -193,15 +217,26 @@ class Player:
         #         if token and token.symbol == self.symbol and (column == 0 or column == 7):
         #             score += 20
 
-        for row in board:
-            for column in row:
-                if column == self.symbol:
-                    score += 1
+        for y in range(8):
+            for x in range(8):
+                if board[x][y] == 'O':
+                    score += 10
 
-        print(score)
+                if board[x][y] == 'X':
+                    score -= 10
 
-        if score == 0:
+                if board[x][y] == 'x' or board[x][y] == 'X':
+                    if x == 0 or x == 7:
+                        score += 5
+
+                if board[x][y] == 'o' or board[x][y] == 'O':
+                    if x == 0 or x == 7:
+                        score -= 5
+
+        if score <= 0:
             score += 1
+
+        debug(f'fitness: {score}')
 
         return score
 
@@ -325,11 +360,17 @@ class Player:
                 return token, all_moves[x][y][user_input[1]]
 
     def move_token(self, token, move):
+
+        if not token:
+            return (-1, -1)
+
         debug(token)
         (new_x, new_y) = move
         asdf_x = (new_x + token.x) / 2
         asdf_y = (new_y + token.y) / 2
-        dead_token = (int(asdf_x), int(asdf_y)) if asdf_x.is_integer() and asdf_y.is_integer() else (-1, -1)
+        dead_token = (-1, -1)
+        if asdf_x % 1 == 0 and asdf_y % 1 == 0:
+            dead_token = (int(asdf_x), int(asdf_y)) if asdf_x.is_integer() and asdf_y.is_integer() else (-1, -1)
         token.move_token(new_x, new_y)
         return dead_token
 
