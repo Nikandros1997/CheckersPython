@@ -4,19 +4,6 @@ import random
 import copy
 
 
-def get_player_input(tokens_that_can_move, all_moves):
-
-    print('Give me your input:')
-
-    print('Your options are:')
-    for x, y in tokens_that_can_move:
-        print(f'{(x, y)} => {all_moves[x][y]}')
-
-    result = list(input())
-
-    return int(result[0]) - 1, 0 if len(result) < 2 else result[1]
-
-
 class Player:
     def __init__(self, x, y, symbol, difficulty_level=0, dev=False):
         debug('Create Player')
@@ -29,6 +16,30 @@ class Player:
         self.difficulty_level = difficulty_level
 
         self.setup_tokens_the_right_way(symbol)
+
+    def get_player_input(self, tokens_that_can_move, all_moves):
+
+        print('Give me your input:')
+
+        print('Your options are:')
+        for x, y in tokens_that_can_move:
+            print(f'{(x, y)} => {all_moves[x][y]}')
+
+        result = list(input())
+
+        move = (int(result[0]) - 1, 0) if len(result) < 2 else (int(result[0]) - 1, int(result[1]) - 1)
+
+        try:
+            x, y = tokens_that_can_move[move[0]]
+            all_moves[x][y][move[1]]
+        except IndexError:
+            print('There was something wrong with your input. Please try again')
+            return self.get_player_input(tokens_that_can_move, all_moves)
+
+        return move
+
+    def is_ai(self):
+        return self.difficulty_level > 0
 
     # kill two in a row and game is over
     def test_multikill_case_1(self, symbol):
@@ -85,7 +96,7 @@ class Player:
             0: self.human_player,
             1: self.level_1_difficulty_agent,
             2: self.level_2_difficulty_agent,
-            3: self.level_3_difficulty_agent,
+            3: self.level_2_difficulty_agent,
         }
 
         selected_agent = agents[self.difficulty_level]
@@ -101,7 +112,7 @@ class Player:
             self.last_kill = -1, -1
             return -1, -1
 
-        user_input = get_player_input(tokens_that_can_move, all_moves)
+        user_input = self.get_player_input(tokens_that_can_move, all_moves)
 
         token, target_tile = self.get_move(user_input, tokens_that_can_move, all_moves)
 
@@ -177,7 +188,7 @@ class Player:
 
                     temp_board[killed_x][killed_y] = ' '
 
-                current_score = temp_opponent.minimax(temp_board, 2, True, temp_self)
+                current_score = temp_opponent.minimax(temp_board, 2 * self.difficulty_level, True, temp_self)
 
                 if current_score > best_score:
                     best_score = current_score
@@ -203,20 +214,6 @@ class Player:
 
         score = 0
 
-        # score += 5 * (len(self.tokens) - len(opponent.tokens))
-
-        # score += sum([5 for token in self.tokens if token.is_king()])
-        # score -= sum([5 for token in opponent.tokens if token.is_king()])
-
-        # if score < 1:
-        #     score = 1
-
-        # for column in range(8):
-        #     for row in range(8):
-        #         token = self.get_token(row, column)
-        #         if token and token.symbol == self.symbol and (column == 0 or column == 7):
-        #             score += 20
-
         for y in range(8):
             for x in range(8):
                 if board[x][y] == 'O':
@@ -225,13 +222,14 @@ class Player:
                 if board[x][y] == 'X':
                     score -= 10
 
-                if board[x][y] == 'x' or board[x][y] == 'X':
+                if board[x][y] == 'o' or board[x][y] == 'O':
                     if x == 0 or x == 7:
                         score += 5
 
-                if board[x][y] == 'o' or board[x][y] == 'O':
+                if board[x][y] == 'x' or board[x][y] == 'X':
                     if x == 0 or x == 7:
                         score -= 5
+
 
         if score <= 0:
             score += 1
@@ -341,28 +339,17 @@ class Player:
     def goal_state(self, opponent):
         return len(self.tokens) > 0 and opponent.tokens == 0
 
-    def level_3_difficulty_agent(self, board):
-
-        tokens_that_can_move, all_moves, forced_kill = self.possible_moves(board, self.last_kill)
-
-        if len(tokens_that_can_move) == 0:
-            self.turn_finished = True
-            self.last_kill = -1, -1
-            return -1, -1
-
-        return self
-
     def get_move(self, user_input, tokens_that_can_move, all_moves):
         for token in self.tokens:
             (x, y) = tokens_that_can_move[user_input[0]]
-
+            print(user_input)
             if token.x == x and token.y == y:
                 return token, all_moves[x][y][user_input[1]]
 
     def move_token(self, token, move):
 
-        if not token:
-            return (-1, -1)
+        # if not token:
+        #     return (-1, -1)
 
         debug(token)
         (new_x, new_y) = move
@@ -409,7 +396,6 @@ class Player:
             if len(possible_moves) > 0:
                 tokens_that_can_move.append((token.x, token.y))
 
-
         return tokens_that_can_move, all_moves, at_least_one_kill
 
     def get_token(self, x, y):
@@ -417,3 +403,15 @@ class Player:
             if token.x == x and token.y == y:
                 # debug(f'Target Token[{x}][{y}] from {[(token.x, token.y) for token in self.tokens]}')
                 return token
+
+    def verify_move(self, board, user_move):
+
+        previous_pos, new_pos = user_move
+
+        tokens_that_can_move, all_moves, forced_kill = self.possible_moves(board, self.last_kill)
+
+        if previous_pos in tokens_that_can_move:
+            x, y = previous_pos
+            if new_pos in all_moves[x][y]:
+                return True
+        return False
